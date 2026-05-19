@@ -697,6 +697,7 @@
 
     function updateWheelFromInput() {
       names = normalizeNames(namesInput.value);
+      namesInput.value = names.join("\n");
       latestWinner = "";
       winnerName.textContent = "Ingen vald ännu";
       updateCount();
@@ -728,10 +729,8 @@
     removeWinnerButton.addEventListener("click", removeWinner);
     resetButton.addEventListener("click", resetList);
 
-    names = normalizeNames(names.join("
-"));
-    namesInput.value = names.join("
-");
+    names = normalizeNames(defaultNames.join("\n"));
+    namesInput.value = names.join("\n");
     updateCount();
     drawWheel();
   </script>
