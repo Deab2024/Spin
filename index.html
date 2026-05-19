@@ -660,6 +660,8 @@
 
       if (availableCount === 0) {
         winnerName.textContent = "Alla namn har redan vunnit";
+        spinButton.disabled = false;
+        isSpinning = false;
         return;
       }
 
@@ -669,6 +671,14 @@
       hideWinnerSlice();
 
       const winnerIndex = getRandomWinnerIndex();
+
+      if (winnerIndex < 0 || winnerIndex >= names.length) {
+        winnerName.textContent = "Kunde inte dra någon vinnare";
+        spinButton.disabled = false;
+        isSpinning = false;
+        return;
+      }
+
       const slice = (Math.PI * 2) / names.length;
       const winnerSliceMiddle = winnerIndex * slice + slice / 2;
       const pointerAngle = Math.PI * 1.5;
@@ -698,13 +708,20 @@
         } else {
           rotation = finalRotation % (Math.PI * 2);
           drawWheel();
+
           latestWinner = names[winnerIndex];
           winnersAlreadyDrawn.add(latestWinner);
           winnerName.textContent = latestWinner;
-          showWinnerSlice(winnerIndex);
           updateCount();
+
           isSpinning = false;
           spinButton.disabled = false;
+
+          try {
+            showWinnerSlice(winnerIndex);
+          } catch (error) {
+            console.error("Kunde inte visa vinnar-animationen:", error);
+          }
         }
       }
 
