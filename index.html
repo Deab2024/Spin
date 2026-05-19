@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Spinning wheel tombola</title>
+  <title>Spin to win</title>
   <style>
     * {
       box-sizing: border-box;
@@ -38,15 +38,9 @@
     }
 
     h1 {
-      margin: 0 0 8px;
-      font-size: clamp(28px, 4vw, 44px);
-      line-height: 1.05;
-    }
-
-    .intro {
       margin: 0 0 24px;
-      color: #555;
-      font-size: 16px;
+      font-size: clamp(34px, 4vw, 54px);
+      line-height: 1.05;
     }
 
     .wheel-wrap {
@@ -114,6 +108,60 @@
       border: 1px solid #e5e5e5;
     }
 
+    .winner-label {
+      margin: 0 0 6px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .winner-name {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 38px);
+      font-weight: 800;
+    }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      font-size: 24px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 420px;
+      resize: vertical;
+      border: 1px solid #d6d6d6;
+      border-radius: 16px;
+      padding: 14px;
+      font: 15px/1.5 Arial, sans-serif;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button.secondary {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      background: #eeeeee;
+      color: #1f1f1f;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button.secondary:hover {
+      background: #dddddd;
+    }
+
+    .count {
+      margin-top: 12px;
+      color: #666;
+      font-size: 14px;
+    }
+
     .winner-overlay {
       position: fixed;
       inset: 0;
@@ -143,6 +191,7 @@
         top 1.05s cubic-bezier(0.16, 1, 0.3, 1),
         transform 1.05s cubic-bezier(0.16, 1, 0.3, 1),
         opacity 0.25s ease;
+      z-index: 3;
     }
 
     .winner-overlay.show .winner-slice-card {
@@ -239,66 +288,6 @@
       }
     }
 
-    .winner-label {
-      margin: 0 0 6px;
-      color: #666;
-      font-size: 14px;
-    }
-
-    .winner-name {
-      margin: 0;
-      font-size: clamp(24px, 4vw, 38px);
-      font-weight: 800;
-    }
-
-    .panel h2 {
-      margin: 0 0 10px;
-      font-size: 24px;
-    }
-
-    .panel p {
-      margin: 0 0 16px;
-      color: #555;
-      line-height: 1.5;
-    }
-
-    textarea {
-      width: 100%;
-      min-height: 420px;
-      resize: vertical;
-      border: 1px solid #d6d6d6;
-      border-radius: 16px;
-      padding: 14px;
-      font: 15px/1.5 Arial, sans-serif;
-    }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    button.secondary {
-      border: 0;
-      border-radius: 999px;
-      padding: 12px 18px;
-      background: #eeeeee;
-      color: #1f1f1f;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    button.secondary:hover {
-      background: #dddddd;
-    }
-
-    .count {
-      margin-top: 12px;
-      color: #666;
-      font-size: 14px;
-    }
-
     @media (max-width: 900px) {
       .app {
         grid-template-columns: 1fr;
@@ -331,7 +320,6 @@
 
     <aside class="panel">
       <h2>Namnlista</h2>
-      
       <textarea id="namesInput"></textarea>
       <div class="actions">
         <button class="secondary" id="updateButton">Uppdatera hjulet</button>
@@ -439,7 +427,7 @@
     const winnerSliceCanvas = document.getElementById("winnerSlice");
     const winnerSliceCtx = winnerSliceCanvas.getContext("2d");
 
-    let names = [...defaultNames];
+    let names = [];
     let rotation = 0;
     let isSpinning = false;
     let latestWinner = "";
@@ -454,7 +442,7 @@
     function normalizeNames(value) {
       const seen = new Set();
 
-      return value
+      return String(value)
         .split("
 ")
         .map(name => name.trim())
@@ -536,11 +524,15 @@
       ctx.restore();
     }
 
-    function getWinnerIndex() {
-      const slice = (Math.PI * 2) / names.length;
-      const pointerAngle = (Math.PI * 1.5 - rotation) % (Math.PI * 2);
-      const normalizedAngle = pointerAngle < 0 ? pointerAngle + Math.PI * 2 : pointerAngle;
-      return Math.floor(normalizedAngle / slice);
+    function getRandomWinnerIndex() {
+      const array = new Uint32Array(1);
+
+      if (window.crypto && window.crypto.getRandomValues) {
+        window.crypto.getRandomValues(array);
+        return array[0] % names.length;
+      }
+
+      return Math.floor(Math.random() * names.length);
     }
 
     function drawWinnerSlice(index, hueShift = 0) {
@@ -635,6 +627,623 @@
       }
     }
 
+    function spinWheel() {
+      if (isSpinning || names.length === 0) return;
+
+      isSpinning = true;
+      spinButton.disabled = true;
+      winnerName.textContent = "Snurrar...";
+      hideWinnerSlice();
+
+      const winnerIndex = getRandomWinnerIndex();
+      const slice = (Math.PI * 2) / names.length;
+      const winnerSliceMiddle = winnerIndex * slice + slice / 2;
+      const pointerAngle = Math.PI * 1.5;
+      const fullSpins = 14 + Math.floor(Math.random() * 4);
+      const targetRotation = fullSpins * Math.PI * 2 + pointerAngle - winnerSliceMiddle;
+      const startRotation = rotation;
+      const currentNormalized = ((startRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      const targetNormalized = ((targetRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      let delta = targetNormalized - currentNormalized;
+
+      if (delta < 0) delta += Math.PI * 2;
+
+      const finalRotation = startRotation + fullSpins * Math.PI * 2 + delta;
+      const duration = 10400;
+      const startTime = performance.now();
+
+      function animate(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 4);
+
+        rotation = startRotation + (finalRotation - startRotation) * eased;
+        drawWheel();
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          rotation = finalRotation % (Math.PI * 2);
+          drawWheel();
+          latestWinner = names[winnerIndex];
+          winnerName.textContent = latestWinner;
+          showWinnerSlice(winnerIndex);
+          isSpinning = false;
+          spinButton.disabled = false;
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    function updateWheelFromInput() {
+      names = normalizeNames(namesInput.value);
+      namesInput.value = names.join("
+");
+      latestWinner = "";
+      winnerName.textContent = "Ingen vald ännu";
+      updateCount();
+      drawWheel();
+    }
+
+    function removeWinner() {
+      if (!latestWinner) return;
+      names = names.filter(name => name !== latestWinner);
+      namesInput.value = names.join("
+");
+      latestWinner = "";
+      winnerName.textContent = "Ingen vald ännu";
+      updateCount();
+      drawWheel();
+    }
+
+    function resetList() {
+      names = normalizeNames(defaultNames.join("
+"));
+      namesInput.value = names.join("
+");
+      latestWinner = "";
+      winnerName.textContent = "Ingen vald ännu";
+      updateCount();
+      drawWheel();
+    }
+
+    spinButton.addEventListener("click", spinWheel);
+    winnerOverlay.addEventListener("click", hideWinnerSlice);
+    updateButton.addEventListener("click", updateWheelFromInput);
+    removeWinnerButton.addEventListener("click", removeWinner);
+    resetButton.addEventListener("click", resetList);
+
+    resetList();
+  </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spin to win</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #f4f1eb;
+      color: #1f1f1f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .app {
+      width: min(1200px, 100%);
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 28px;
+      align-items: start;
+    }
+
+    .wheel-card,
+    .panel {
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12);
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 24px;
+      font-size: clamp(34px, 4vw, 54px);
+      line-height: 1.05;
+    }
+
+    .wheel-wrap {
+      position: relative;
+      width: min(680px, 100%);
+      aspect-ratio: 1;
+      margin: 0 auto 24px;
+      display: grid;
+      place-items: center;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 50%;
+      filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.22));
+    }
+
+    .pointer {
+      position: absolute;
+      top: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 20px solid transparent;
+      border-right: 20px solid transparent;
+      border-top: 44px solid #151515;
+      z-index: 5;
+    }
+
+    .center-button {
+      position: absolute;
+      width: 132px;
+      height: 132px;
+      border-radius: 50%;
+      border: 8px solid #ffffff;
+      background: #151515;
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+      transition: transform 0.2s ease, background 0.2s ease;
+      z-index: 4;
+    }
+
+    .center-button:hover {
+      transform: scale(1.04);
+      background: #303030;
+    }
+
+    .center-button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .winner-box {
+      text-align: center;
+      min-height: 72px;
+      padding: 18px;
+      border-radius: 18px;
+      background: #f8f8f8;
+      border: 1px solid #e5e5e5;
+    }
+
+    .winner-label {
+      margin: 0 0 6px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .winner-name {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 38px);
+      font-weight: 800;
+    }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      font-size: 24px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 420px;
+      resize: vertical;
+      border: 1px solid #d6d6d6;
+      border-radius: 16px;
+      padding: 14px;
+      font: 15px/1.5 Arial, sans-serif;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button.secondary {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      background: #eeeeee;
+      color: #1f1f1f;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button.secondary:hover {
+      background: #dddddd;
+    }
+
+    .count {
+      margin-top: 12px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .winner-overlay {
+      position: fixed;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      z-index: 20;
+      background: rgba(0, 0, 0, 0.78);
+      overflow: hidden;
+    }
+
+    .winner-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .winner-slice-card {
+      position: absolute;
+      left: var(--slice-start-left, 50%);
+      top: var(--slice-start-top, 50%);
+      width: min(980px, calc(100vw - 20px));
+      aspect-ratio: 1;
+      transform: translate(-50%, -50%) scale(0.16) rotate(var(--slice-start-rotation, 0deg));
+      opacity: 0;
+      transition:
+        left 1.05s cubic-bezier(0.16, 1, 0.3, 1),
+        top 1.05s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 1.05s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.25s ease;
+      z-index: 3;
+    }
+
+    .winner-overlay.show .winner-slice-card {
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) scale(1) rotate(0deg);
+      opacity: 1;
+    }
+
+    #winnerSlice {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 28px 42px rgba(0, 0, 0, 0.52));
+    }
+
+    .congrats {
+      position: absolute;
+      left: 50%;
+      top: 15%;
+      transform: translate(-50%, -50%) scale(0.4);
+      opacity: 0;
+      font-size: clamp(48px, 8vw, 112px);
+      line-height: 1;
+      font-weight: 950;
+      color: #ffffff;
+      text-shadow:
+        0 0 12px rgba(255, 255, 255, 0.95),
+        0 0 28px rgba(255, 234, 0, 0.9),
+        0 0 52px rgba(255, 0, 140, 0.75);
+      z-index: 2;
+      transition: transform 0.75s cubic-bezier(0.2, 1.4, 0.2, 1), opacity 0.3s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .winner-overlay.show .congrats {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+      animation: congratsPulse 1.4s ease-in-out infinite alternate;
+    }
+
+    .fireworks {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .firework {
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: hsl(var(--hue), 100%, 60%);
+      box-shadow:
+        0 -52px 0 hsl(calc(var(--hue) + 20), 100%, 60%),
+        37px -37px 0 hsl(calc(var(--hue) + 55), 100%, 60%),
+        52px 0 0 hsl(calc(var(--hue) + 90), 100%, 60%),
+        37px 37px 0 hsl(calc(var(--hue) + 125), 100%, 60%),
+        0 52px 0 hsl(calc(var(--hue) + 160), 100%, 60%),
+        -37px 37px 0 hsl(calc(var(--hue) + 195), 100%, 60%),
+        -52px 0 0 hsl(calc(var(--hue) + 230), 100%, 60%),
+        -37px -37px 0 hsl(calc(var(--hue) + 265), 100%, 60%);
+      opacity: 0;
+      transform: scale(0.1);
+      animation: fireworkBurst 1.35s ease-out infinite;
+      animation-delay: var(--delay);
+    }
+
+    @keyframes fireworkBurst {
+      0% {
+        opacity: 0;
+        transform: scale(0.1);
+        filter: blur(0);
+      }
+      18% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1.5);
+        filter: blur(1px);
+      }
+    }
+
+    @keyframes congratsPulse {
+      from {
+        filter: hue-rotate(0deg);
+      }
+      to {
+        filter: hue-rotate(70deg);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .center-button {
+        width: 108px;
+        height: 108px;
+        font-size: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="wheel-card">
+      <h1>Spin to win</h1>
+
+      <div class="wheel-wrap">
+        <div class="pointer" aria-hidden="true"></div>
+        <canvas id="wheel" width="900" height="900"></canvas>
+        <button class="center-button" id="spinButton">Snurra</button>
+      </div>
+
+      <div class="winner-box" aria-live="polite">
+        <p class="winner-label">Vinnare</p>
+        <p class="winner-name" id="winnerName">Ingen vald ännu</p>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <h2>Namnlista</h2>
+      <textarea id="namesInput"></textarea>
+      <div class="actions">
+        <button class="secondary" id="updateButton">Uppdatera hjulet</button>
+        <button class="secondary" id="removeWinnerButton">Ta bort vinnaren</button>
+        <button class="secondary" id="resetButton">Återställ listan</button>
+      </div>
+      <div class="count" id="countText"></div>
+    </aside>
+  </main>
+
+  <div class="winner-overlay" id="winnerOverlay" aria-hidden="true">
+    <div class="fireworks" aria-hidden="true">
+      <span class="firework" style="--x: 18%; --y: 24%; --hue: 12; --delay: 0s;"></span>
+      <span class="firework" style="--x: 78%; --y: 22%; --hue: 210; --delay: 0.24s;"></span>
+      <span class="firework" style="--x: 25%; --y: 72%; --hue: 115; --delay: 0.48s;"></span>
+      <span class="firework" style="--x: 82%; --y: 70%; --hue: 295; --delay: 0.72s;"></span>
+      <span class="firework" style="--x: 52%; --y: 30%; --hue: 45; --delay: 0.96s;"></span>
+    </div>
+    <div class="congrats">Grattis!!</div>
+    <div class="winner-slice-card" id="winnerSliceCard">
+      <canvas id="winnerSlice" width="900" height="900"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const defaultNames = [
+      "Rickard Mastola",
+      "Stanislaw Lux",
+      "Frida Andersson",
+      "Camilla Rosendrake",
+      "Jari Forsman",
+      "Åsa Sergelius",
+      "Alice Öberg",
+      "Alvin Wedstedt",
+      "Oscar Ragnar Alfons Kling",
+      "Malin Bergström",
+      "Marlene Hofmann",
+      "Therese Larsson",
+      "Max Hökdal",
+      "Linda Nordin",
+      "Gina Frost",
+      "Tanja Sova",
+      "Fredrik Eklund",
+      "Johan Ringblom",
+      "Linda Stockenberg",
+      "Matilda O'Connor",
+      "Pontus Blomkvist",
+      "Camilla Delac",
+      "Elin Ericsson",
+      "Michaela Lindbäck",
+      "Irja Hökås",
+      "Elin Thurang",
+      "Marica Anderbrink",
+      "Carl Tillenius",
+      "Stefan Eriksson",
+      "Joakim Borkovic",
+      "Anne-Marie Pettersson",
+      "Susanna Perämäki",
+      "Ulrica Sjöberg",
+      "Josefin Hultmar",
+      "Mikael Örn",
+      "Elin Lundberg",
+      "Josefin Holmgren",
+      "Linnéa Lindgren",
+      "Åsa Salo",
+      "Anders Lundgren",
+      "Hakan Ringkvist",
+      "Jari Puustinen",
+      "Simon Glimtoft",
+      "Lisa Lövenros",
+      "Christoffer Andersson",
+      "Saga Chressman",
+      "Maria Fehne",
+      "Andréas Ljungman",
+      "Linda Lundqvist",
+      "Diyar Alis",
+      "Jens Carlberg",
+      "Mattias Zingmark",
+      "Mats Karlsson",
+      "Johan Hermansson",
+      "Nadja Olsson",
+      "Lotta Larsson",
+      "Alexander Widerberg",
+      "Karin Jonasson",
+      "Eric Johansson",
+      "Christin Widerberg",
+      "Maria Brostedt",
+      "Slawik Misiak",
+      "Susanne Heldring",
+      "Marcus Forss",
+      "Annica Åkerblad"
+    ];
+
+    const canvas = document.getElementById("wheel");
+    const ctx = canvas.getContext("2d");
+    const spinButton = document.getElementById("spinButton");
+    const updateButton = document.getElementById("updateButton");
+    const removeWinnerButton = document.getElementById("removeWinnerButton");
+    const resetButton = document.getElementById("resetButton");
+    const namesInput = document.getElementById("namesInput");
+    const winnerName = document.getElementById("winnerName");
+    const countText = document.getElementById("countText");
+    const winnerOverlay = document.getElementById("winnerOverlay");
+    const winnerSliceCard = document.getElementById("winnerSliceCard");
+    const winnerSliceCanvas = document.getElementById("winnerSlice");
+    const winnerSliceCtx = winnerSliceCanvas.getContext("2d");
+
+    let names = [];
+    let rotation = 0;
+    let isSpinning = false;
+    let latestWinner = "";
+    let winnerAnimationFrame = null;
+    let activeWinnerIndex = null;
+
+    const colors = [
+      "#f7c948", "#f97068", "#57c7ff", "#7bd88f", "#c084fc", "#ff9f43",
+      "#4dd4ac", "#ff6b9a", "#94a3b8", "#facc15", "#60a5fa", "#fb7185"
+    ];
+
+    function normalizeNames(value) {
+      const seen = new Set();
+
+      return String(value)
+        .split("
+")
+        .map(name => name.trim())
+        .filter(Boolean)
+        .filter(name => {
+          const key = name.toLocaleLowerCase("sv-SE");
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+    }
+
+    function updateCount() {
+      countText.textContent = `${names.length} namn i hjulet`;
+    }
+
+    function drawWheel() {
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = width / 2 - 28;
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(rotation);
+
+      if (names.length === 0) {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#eeeeee";
+        ctx.fill();
+        ctx.fillStyle = "#555";
+        ctx.textAlign = "center";
+        ctx.font = "bold 34px Arial";
+        ctx.fillText("Lägg till namn", 0, 0);
+        ctx.restore();
+        return;
+      }
+
+      const slice = (Math.PI * 2) / names.length;
+
+      names.forEach((name, index) => {
+        const start = index * slice;
+        const end = start + slice;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, start, end);
+        ctx.closePath();
+        ctx.fillStyle = colors[index % colors.length];
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.rotate(start + slice / 2);
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#151515";
+        ctx.font = names.length > 45 ? "bold 17px Arial" : "bold 22px Arial";
+
+        const visibleName = name.length > 26 ? `${name.slice(0, 24)}…` : name;
+        const textX = radius * 0.36;
+        const maxTextWidth = radius * 0.56;
+
+        ctx.fillText(visibleName, textX, 0, maxTextWidth);
+        ctx.restore();
+      });
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 80, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+
+      ctx.restore();
+    }
+
     function getRandomWinnerIndex() {
       const array = new Uint32Array(1);
 
@@ -644,6 +1253,98 @@
       }
 
       return Math.floor(Math.random() * names.length);
+    }
+
+    function drawWinnerSlice(index, hueShift = 0) {
+      const width = winnerSliceCanvas.width;
+      const height = winnerSliceCanvas.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = width * 0.49;
+      const slice = (Math.PI * 2) / names.length;
+      const start = -slice / 2;
+      const end = slice / 2;
+      const color = colors[index % colors.length];
+      const name = names[index];
+
+      winnerSliceCtx.clearRect(0, 0, width, height);
+      winnerSliceCtx.save();
+      winnerSliceCtx.translate(centerX, centerY);
+
+      winnerSliceCtx.beginPath();
+      winnerSliceCtx.moveTo(0, 0);
+      winnerSliceCtx.arc(0, 0, radius, start, end);
+      winnerSliceCtx.closePath();
+      winnerSliceCtx.fillStyle = color;
+      winnerSliceCtx.fill();
+      winnerSliceCtx.strokeStyle = "#ffffff";
+      winnerSliceCtx.lineWidth = 9;
+      winnerSliceCtx.stroke();
+
+      winnerSliceCtx.textAlign = "left";
+      winnerSliceCtx.textBaseline = "middle";
+      winnerSliceCtx.font = "900 54px Arial";
+      winnerSliceCtx.lineWidth = 10;
+      winnerSliceCtx.strokeStyle = "rgba(0, 0, 0, 0.72)";
+
+      const visibleName = name.length > 24 ? `${name.slice(0, 22)}…` : name;
+      const textX = radius * 0.18;
+      const maxTextWidth = radius * 0.76;
+
+      winnerSliceCtx.strokeText(visibleName, textX, 0, maxTextWidth);
+      winnerSliceCtx.fillStyle = `hsl(${hueShift % 360}, 100%, 62%)`;
+      winnerSliceCtx.shadowColor = `hsl(${(hueShift + 70) % 360}, 100%, 62%)`;
+      winnerSliceCtx.shadowBlur = 18;
+      winnerSliceCtx.fillText(visibleName, textX, 0, maxTextWidth);
+      winnerSliceCtx.restore();
+    }
+
+    function animateWinnerText(index) {
+      activeWinnerIndex = index;
+      const startTime = performance.now();
+
+      function render(now) {
+        if (activeWinnerIndex !== index) return;
+        const hue = ((now - startTime) / 12) % 360;
+        drawWinnerSlice(index, hue);
+        winnerAnimationFrame = requestAnimationFrame(render);
+      }
+
+      if (winnerAnimationFrame) cancelAnimationFrame(winnerAnimationFrame);
+      winnerAnimationFrame = requestAnimationFrame(render);
+    }
+
+    function showWinnerSlice(index) {
+      const wheelRect = canvas.getBoundingClientRect();
+      const wheelCenterX = wheelRect.left + wheelRect.width / 2;
+      const wheelCenterY = wheelRect.top + wheelRect.height / 2;
+      const slice = (Math.PI * 2) / names.length;
+      const currentSliceMiddle = index * slice + slice / 2 + rotation;
+      const startX = wheelCenterX + Math.cos(currentSliceMiddle) * wheelRect.width * 0.12;
+      const startY = wheelCenterY + Math.sin(currentSliceMiddle) * wheelRect.height * 0.12;
+      const startRotation = currentSliceMiddle * 180 / Math.PI;
+
+      winnerSliceCard.style.setProperty("--slice-start-left", `${startX}px`);
+      winnerSliceCard.style.setProperty("--slice-start-top", `${startY}px`);
+      winnerSliceCard.style.setProperty("--slice-start-rotation", `${startRotation}deg`);
+
+      drawWinnerSlice(index, 0);
+      winnerOverlay.classList.remove("show");
+      requestAnimationFrame(() => {
+        winnerOverlay.classList.add("show");
+        winnerOverlay.setAttribute("aria-hidden", "false");
+        animateWinnerText(index);
+      });
+    }
+
+    function hideWinnerSlice() {
+      winnerOverlay.classList.remove("show");
+      winnerOverlay.setAttribute("aria-hidden", "true");
+      activeWinnerIndex = null;
+      if (winnerAnimationFrame) {
+        cancelAnimationFrame(winnerAnimationFrame);
+        winnerAnimationFrame = null;
+      }
     }
 
     function spinWheel() {
@@ -697,7 +1398,8 @@
 
     function updateWheelFromInput() {
       names = normalizeNames(namesInput.value);
-      namesInput.value = names.join("\n");
+      namesInput.value = names.join("
+");
       latestWinner = "";
       winnerName.textContent = "Ingen vald ännu";
       updateCount();
@@ -707,7 +1409,8 @@
     function removeWinner() {
       if (!latestWinner) return;
       names = names.filter(name => name !== latestWinner);
-      namesInput.value = names.join("\n");
+      namesInput.value = names.join("
+");
       latestWinner = "";
       winnerName.textContent = "Ingen vald ännu";
       updateCount();
@@ -715,8 +1418,10 @@
     }
 
     function resetList() {
-      names = [...defaultNames];
-      namesInput.value = names.join("\n");
+      names = normalizeNames(defaultNames.join("
+"));
+      namesInput.value = names.join("
+");
       latestWinner = "";
       winnerName.textContent = "Ingen vald ännu";
       updateCount();
@@ -729,10 +1434,7 @@
     removeWinnerButton.addEventListener("click", removeWinner);
     resetButton.addEventListener("click", resetList);
 
-    names = normalizeNames(defaultNames.join("\n"));
-    namesInput.value = names.join("\n");
-    updateCount();
-    drawWheel();
+    resetList();
   </script>
 </body>
 </html>
