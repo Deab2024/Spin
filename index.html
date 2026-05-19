@@ -114,6 +114,60 @@
       border: 1px solid #e5e5e5;
     }
 
+    .winner-overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+      z-index: 20;
+    }
+
+    .winner-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .winner-slice-card {
+      width: min(620px, calc(100vw - 32px));
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      transform: scale(0.2) rotate(-12deg);
+      opacity: 0;
+      transition: transform 0.75s cubic-bezier(0.2, 1.25, 0.25, 1), opacity 0.45s ease;
+    }
+
+    .winner-overlay.show .winner-slice-card {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+    }
+
+    #winnerSlice {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 24px 32px rgba(0, 0, 0, 0.32));
+    }
+
+    .winner-overlay-name {
+      position: absolute;
+      bottom: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: min(560px, calc(100vw - 48px));
+      padding: 18px 26px;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #151515;
+      font-size: clamp(28px, 5vw, 54px);
+      font-weight: 900;
+      text-align: center;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+    }
+
     .winner-label {
       margin: 0 0 6px;
       color: #666;
@@ -190,8 +244,7 @@
 <body>
   <main class="app">
     <section class="wheel-card">
-      <h1>Tombola</h1>
-      <p class="intro">Klicka på snurra för att slumpa fram ett namn.</p>
+      <h1>Spin to win</h1>
 
       <div class="wheel-wrap">
         <div class="pointer" aria-hidden="true"></div>
@@ -207,7 +260,7 @@
 
     <aside class="panel">
       <h2>Namnlista</h2>
-      <p>Ett namn per rad. Uppdatera listan om du vill lägga till eller ta bort personer.</p>
+      
       <textarea id="namesInput"></textarea>
       <div class="actions">
         <button class="secondary" id="updateButton">Uppdatera hjulet</button>
@@ -217,6 +270,13 @@
       <div class="count" id="countText"></div>
     </aside>
   </main>
+
+  <div class="winner-overlay" id="winnerOverlay" aria-hidden="true">
+    <div class="winner-slice-card">
+      <canvas id="winnerSlice" width="900" height="900"></canvas>
+      <div class="winner-overlay-name" id="winnerOverlayName"></div>
+    </div>
+  </div>
 
   <script>
     const defaultNames = [
@@ -297,6 +357,10 @@
     const namesInput = document.getElementById("namesInput");
     const winnerName = document.getElementById("winnerName");
     const countText = document.getElementById("countText");
+    const winnerOverlay = document.getElementById("winnerOverlay");
+    const winnerSliceCanvas = document.getElementById("winnerSlice");
+    const winnerSliceCtx = winnerSliceCanvas.getContext("2d");
+    const winnerOverlayName = document.getElementById("winnerOverlayName");
 
     let names = [...defaultNames];
     let rotation = 0;
@@ -391,6 +455,51 @@
       return Math.floor(normalizedAngle / slice);
     }
 
+    function showWinnerSlice(index) {
+      const width = winnerSliceCanvas.width;
+      const height = winnerSliceCanvas.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = width * 0.42;
+      const slice = (Math.PI * 2) / names.length;
+      const start = -slice / 2;
+      const end = slice / 2;
+      const color = colors[index % colors.length];
+      const name = names[index];
+
+      winnerSliceCtx.clearRect(0, 0, width, height);
+      winnerSliceCtx.save();
+      winnerSliceCtx.translate(centerX, centerY);
+
+      winnerSliceCtx.beginPath();
+      winnerSliceCtx.moveTo(0, 0);
+      winnerSliceCtx.arc(0, 0, radius, start, end);
+      winnerSliceCtx.closePath();
+      winnerSliceCtx.fillStyle = color;
+      winnerSliceCtx.fill();
+      winnerSliceCtx.strokeStyle = "#ffffff";
+      winnerSliceCtx.lineWidth = 8;
+      winnerSliceCtx.stroke();
+
+      winnerSliceCtx.rotate(0);
+      winnerSliceCtx.textAlign = "left";
+      winnerSliceCtx.textBaseline = "middle";
+      winnerSliceCtx.fillStyle = "#151515";
+      winnerSliceCtx.font = "900 42px Arial";
+      const visibleName = name.length > 24 ? `${name.slice(0, 22)}…` : name;
+      winnerSliceCtx.fillText(visibleName, radius * 0.22, 0, radius * 0.68);
+
+      winnerSliceCtx.restore();
+      winnerOverlayName.textContent = name;
+      winnerOverlay.classList.add("show");
+      winnerOverlay.setAttribute("aria-hidden", "false");
+    }
+
+    function hideWinnerSlice() {
+      winnerOverlay.classList.remove("show");
+      winnerOverlay.setAttribute("aria-hidden", "true");
+    }
+
     function spinWheel() {
       if (isSpinning || names.length === 0) return;
 
@@ -402,7 +511,7 @@
       const extraSpins = 7 + Math.random() * 4;
       const randomStop = Math.random() * Math.PI * 2;
       const targetRotation = startRotation + extraSpins * Math.PI * 2 + randomStop;
-      const duration = 5200;
+      const duration = 10400;
       const startTime = performance.now();
 
       function animate(now) {
@@ -421,6 +530,7 @@
           const winnerIndex = getWinnerIndex();
           latestWinner = names[winnerIndex];
           winnerName.textContent = latestWinner;
+          showWinnerSlice(winnerIndex);
           isSpinning = false;
           spinButton.disabled = false;
         }
@@ -457,6 +567,7 @@
     }
 
     spinButton.addEventListener("click", spinWheel);
+    winnerOverlay.addEventListener("click", hideWinnerSlice);
     updateButton.addEventListener("click", updateWheelFromInput);
     removeWinnerButton.addEventListener("click", removeWinner);
     resetButton.addEventListener("click", resetList);
