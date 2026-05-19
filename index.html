@@ -390,6 +390,7 @@
       "Joakim Borkovic",
       "Anne-Marie Pettersson",
       "Susanna Perämäki",
+      "Ulrica Sjöberg",
       "Josefin Hultmar",
       "Mikael Örn",
       "Elin Lundberg",
@@ -445,6 +446,7 @@
     let latestWinner = "";
     let winnerAnimationFrame = null;
     let activeWinnerIndex = null;
+    let winnersAlreadyDrawn = new Set();
 
     const colors = [
       "#f7c948", "#f97068", "#57c7ff", "#7bd88f", "#c084fc", "#ff9f43",
@@ -459,7 +461,8 @@
     }
 
     function updateCount() {
-      countText.textContent = `${names.length} namn i hjulet`;
+      const availableCount = names.filter(name => !winnersAlreadyDrawn.has(name)).length;
+      countText.textContent = `${names.length} namn i hjulet, ${availableCount} kvar att dra`;
     }
 
     function drawWheel() {
@@ -626,19 +629,39 @@
       }
     }
 
-    function getRandomWinnerIndex() {
+    function randomNumber(max) {
       const array = new Uint32Array(1);
 
       if (window.crypto && window.crypto.getRandomValues) {
         window.crypto.getRandomValues(array);
-        return array[0] % names.length;
+        return array[0] % max;
       }
 
-      return Math.floor(Math.random() * names.length);
+      return Math.floor(Math.random() * max);
+    }
+
+    function getRandomWinnerIndex() {
+      const availableNames = names
+        .map((name, index) => ({ name, index }))
+        .filter(item => !winnersAlreadyDrawn.has(item.name));
+
+      if (availableNames.length === 0) {
+        return -1;
+      }
+
+      const randomIndex = randomNumber(availableNames.length);
+      return availableNames[randomIndex].index;
     }
 
     function spinWheel() {
       if (isSpinning || names.length === 0) return;
+
+      const availableCount = names.filter(name => !winnersAlreadyDrawn.has(name)).length;
+
+      if (availableCount === 0) {
+        winnerName.textContent = "Alla namn har redan vunnit";
+        return;
+      }
 
       isSpinning = true;
       spinButton.disabled = true;
@@ -676,8 +699,10 @@
           rotation = finalRotation % (Math.PI * 2);
           drawWheel();
           latestWinner = names[winnerIndex];
+          winnersAlreadyDrawn.add(latestWinner);
           winnerName.textContent = latestWinner;
           showWinnerSlice(winnerIndex);
+          updateCount();
           isSpinning = false;
           spinButton.disabled = false;
         }
@@ -688,6 +713,7 @@
 
     function updateWheelFromInput() {
       names = normalizeNames(namesInput.value);
+      winnersAlreadyDrawn.clear();
       latestWinner = "";
       winnerName.textContent = "Ingen vald ännu";
       updateCount();
@@ -706,6 +732,7 @@
 
     function resetList() {
       names = [...defaultNames];
+      winnersAlreadyDrawn.clear();
       namesInput.value = names.join("\n");
       latestWinner = "";
       winnerName.textContent = "Ingen vald ännu";
