@@ -117,12 +117,9 @@
     .winner-overlay {
       position: fixed;
       inset: 0;
-      display: grid;
-      place-items: center;
-      background: rgba(0, 0, 0, 0.5);
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.35s ease;
+      transition: opacity 0.25s ease;
       z-index: 20;
     }
 
@@ -132,40 +129,31 @@
     }
 
     .winner-slice-card {
-      width: min(620px, calc(100vw - 32px));
+      position: absolute;
+      left: var(--slice-start-left, 50%);
+      top: var(--slice-start-top, 50%);
+      width: min(740px, calc(100vw - 40px));
       aspect-ratio: 1;
-      display: grid;
-      place-items: center;
-      transform: scale(0.2) rotate(-12deg);
+      transform: translate(-50%, -50%) scale(0.18) rotate(var(--slice-start-rotation, 0deg));
       opacity: 0;
-      transition: transform 0.75s cubic-bezier(0.2, 1.25, 0.25, 1), opacity 0.45s ease;
+      transition:
+        left 1.05s cubic-bezier(0.16, 1, 0.3, 1),
+        top 1.05s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 1.05s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.25s ease;
     }
 
     .winner-overlay.show .winner-slice-card {
-      transform: scale(1) rotate(0deg);
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) scale(1) rotate(0deg);
       opacity: 1;
     }
 
     #winnerSlice {
       width: 100%;
       height: 100%;
-      filter: drop-shadow(0 24px 32px rgba(0, 0, 0, 0.32));
-    }
-
-    .winner-overlay-name {
-      position: absolute;
-      bottom: 10%;
-      left: 50%;
-      transform: translateX(-50%);
-      max-width: min(560px, calc(100vw - 48px));
-      padding: 18px 26px;
-      border-radius: 999px;
-      background: #ffffff;
-      color: #151515;
-      font-size: clamp(28px, 5vw, 54px);
-      font-weight: 900;
-      text-align: center;
-      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+      filter: drop-shadow(0 24px 34px rgba(0, 0, 0, 0.34));
     }
 
     .winner-label {
@@ -272,9 +260,8 @@
   </main>
 
   <div class="winner-overlay" id="winnerOverlay" aria-hidden="true">
-    <div class="winner-slice-card">
+    <div class="winner-slice-card" id="winnerSliceCard">
       <canvas id="winnerSlice" width="900" height="900"></canvas>
-      <div class="winner-overlay-name" id="winnerOverlayName"></div>
     </div>
   </div>
 
@@ -358,9 +345,9 @@
     const winnerName = document.getElementById("winnerName");
     const countText = document.getElementById("countText");
     const winnerOverlay = document.getElementById("winnerOverlay");
+    const winnerSliceCard = document.getElementById("winnerSliceCard");
     const winnerSliceCanvas = document.getElementById("winnerSlice");
     const winnerSliceCtx = winnerSliceCanvas.getContext("2d");
-    const winnerOverlayName = document.getElementById("winnerOverlayName");
 
     let names = [...defaultNames];
     let rotation = 0;
@@ -456,12 +443,24 @@
     }
 
     function showWinnerSlice(index) {
+      const wheelRect = canvas.getBoundingClientRect();
+      const wheelCenterX = wheelRect.left + wheelRect.width / 2;
+      const wheelCenterY = wheelRect.top + wheelRect.height / 2;
+      const slice = (Math.PI * 2) / names.length;
+      const currentSliceMiddle = index * slice + slice / 2 + rotation;
+      const startX = wheelCenterX + Math.cos(currentSliceMiddle) * wheelRect.width * 0.24;
+      const startY = wheelCenterY + Math.sin(currentSliceMiddle) * wheelRect.height * 0.24;
+      const startRotation = currentSliceMiddle * 180 / Math.PI;
+
+      winnerSliceCard.style.setProperty("--slice-start-left", `${startX}px`);
+      winnerSliceCard.style.setProperty("--slice-start-top", `${startY}px`);
+      winnerSliceCard.style.setProperty("--slice-start-rotation", `${startRotation}deg`);
+
       const width = winnerSliceCanvas.width;
       const height = winnerSliceCanvas.height;
       const centerX = width / 2;
       const centerY = height / 2;
-      const radius = width * 0.42;
-      const slice = (Math.PI * 2) / names.length;
+      const radius = width * 0.43;
       const start = -slice / 2;
       const end = slice / 2;
       const color = colors[index % colors.length];
@@ -481,18 +480,32 @@
       winnerSliceCtx.lineWidth = 8;
       winnerSliceCtx.stroke();
 
-      winnerSliceCtx.rotate(0);
+      const gradient = winnerSliceCtx.createLinearGradient(radius * 0.18, -45, radius * 0.92, 45);
+      gradient.addColorStop(0, "#ff004c");
+      gradient.addColorStop(0.16, "#ff8a00");
+      gradient.addColorStop(0.32, "#ffe600");
+      gradient.addColorStop(0.48, "#00c853");
+      gradient.addColorStop(0.64, "#00b0ff");
+      gradient.addColorStop(0.8, "#304ffe");
+      gradient.addColorStop(1, "#d500f9");
+
       winnerSliceCtx.textAlign = "left";
       winnerSliceCtx.textBaseline = "middle";
-      winnerSliceCtx.fillStyle = "#151515";
-      winnerSliceCtx.font = "900 42px Arial";
+      winnerSliceCtx.fillStyle = gradient;
+      winnerSliceCtx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+      winnerSliceCtx.lineWidth = 8;
+      winnerSliceCtx.font = "900 46px Arial";
       const visibleName = name.length > 24 ? `${name.slice(0, 22)}…` : name;
-      winnerSliceCtx.fillText(visibleName, radius * 0.22, 0, radius * 0.68);
+      winnerSliceCtx.strokeText(visibleName, radius * 0.2, 0, radius * 0.72);
+      winnerSliceCtx.fillText(visibleName, radius * 0.2, 0, radius * 0.72);
 
       winnerSliceCtx.restore();
-      winnerOverlayName.textContent = name;
-      winnerOverlay.classList.add("show");
-      winnerOverlay.setAttribute("aria-hidden", "false");
+
+      winnerOverlay.classList.remove("show");
+      requestAnimationFrame(() => {
+        winnerOverlay.classList.add("show");
+        winnerOverlay.setAttribute("aria-hidden", "false");
+      });
     }
 
     function hideWinnerSlice() {
