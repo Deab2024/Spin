@@ -398,7 +398,6 @@
       "Linnéa Lindgren",
       "Åsa Salo",
       "Anders Lundgren",
-      "Ulrica Sjöberg",
       "Hakan Ringkvist",
       "Jari Puustinen",
       "Simon Glimtoft",
@@ -453,10 +452,19 @@
     ];
 
     function normalizeNames(value) {
+      const seen = new Set();
+
       return value
-        .split("\n")
+        .split("
+")
         .map(name => name.trim())
-        .filter(Boolean);
+        .filter(Boolean)
+        .filter(name => {
+          const key = name.toLocaleLowerCase("sv-SE");
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
     }
 
     function updateCount() {
@@ -720,7 +728,10 @@
     removeWinnerButton.addEventListener("click", removeWinner);
     resetButton.addEventListener("click", resetList);
 
-    namesInput.value = names.join("\n");
+    names = normalizeNames(names.join("
+"));
+    namesInput.value = names.join("
+");
     updateCount();
     drawWheel();
   </script>
